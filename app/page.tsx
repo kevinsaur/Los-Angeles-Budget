@@ -7,7 +7,7 @@ export default function Home() {
         </h1>
 
         <p className="mt-6 text-lg text-gray-600">
-          This site is built with Next.js, stored on GitHub, and ready to deploy.
+          A better way to learn about your city and its inner workings.
         </p>
       </section>
     </main>
