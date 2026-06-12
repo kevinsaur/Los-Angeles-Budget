@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { PageShell } from "./components/page-shell";
 
 const EXAMPLE_QUESTIONS = [
   "How much does LA spend on homelessness services?",
@@ -9,8 +10,6 @@ const EXAMPLE_QUESTIONS = [
   "What percentage of the budget goes to public works infrastructure?",
   "How much funding does the city allocate to affordable housing programs?",
 ];
-
-const NAV_LINKS = ["Home", "Data", "About"] as const;
 
 function SearchIcon() {
   return (
@@ -43,6 +42,12 @@ function ArrowRightIcon({ active }: { active: boolean }) {
   );
 }
 
+function resizeTextarea(el: HTMLTextAreaElement | null) {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+}
+
 export default function Home() {
   const [query, setQuery] = useState("");
   const [placeholder, setPlaceholder] = useState(EXAMPLE_QUESTIONS[0]);
@@ -59,12 +64,9 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleInput = () => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  };
+  useEffect(() => {
+    resizeTextarea(textareaRef.current);
+  }, [query]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,39 +76,7 @@ export default function Home() {
   const hasQuery = query.trim().length > 0;
 
   return (
-    <div
-      className="relative flex min-h-screen flex-col bg-[linear-gradient(160deg,#c9b8e8_0%,#e8b4d0_28%,#f5c4a8_55%,#f9d8b0_75%,#fce8c8_100%)]"
-    >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 opacity-40"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E\")",
-        }}
-      />
-
-      <header className="relative z-10 flex items-center justify-between px-6 py-6 md:px-16">
-        <div className="text-sm uppercase tracking-[0.2em] text-[rgba(60,30,80,0.5)]">
-          LA Budget Explorer
-        </div>
-        <nav className="flex gap-6 md:gap-8">
-          {NAV_LINKS.map((link) => (
-            <a
-              key={link}
-              href="#"
-              className={`text-sm tracking-wide transition-colors duration-200 ${
-                link === "Home"
-                  ? "font-medium text-[#3c1e50]"
-                  : "font-light text-[rgba(60,30,80,0.5)] hover:text-[#3c1e50]"
-              }`}
-            >
-              {link}
-            </a>
-          ))}
-        </nav>
-      </header>
-
+    <PageShell>
       <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pt-12 pb-20 text-center md:pt-24 md:pb-24">
         <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/50 bg-white/35 px-4 py-1.5 text-xs uppercase tracking-[0.15em] text-[rgba(60,30,80,0.75)] backdrop-blur-sm">
           <span className="size-1.5 rounded-full bg-[#c97ab0]" />
@@ -132,10 +102,7 @@ export default function Home() {
                 ref={textareaRef}
                 rows={1}
                 value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  handleInput();
-                }}
+                onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
@@ -177,11 +144,6 @@ export default function Home() {
           ))}
         </div>
       </main>
-
-      <footer className="relative z-10 pb-8 text-center text-xs text-[rgba(60,30,80,0.35)]">
-        Data sourced from the City of Los Angeles Office of the City
-        Administrative Officer
-      </footer>
-    </div>
+    </PageShell>
   );
 }
