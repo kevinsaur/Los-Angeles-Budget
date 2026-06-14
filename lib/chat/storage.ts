@@ -21,7 +21,20 @@ function readConversationFromStorage(): Conversation | null {
     if (raw === cachedRaw) return cachedSnapshot;
 
     cachedRaw = raw;
-    cachedSnapshot = raw ? (JSON.parse(raw) as Conversation) : null;
+    if (!raw) {
+      cachedSnapshot = null;
+      return cachedSnapshot;
+    }
+
+    const conversation = JSON.parse(raw) as Conversation;
+    if (conversation.langflowSessionId) {
+      const { langflowSessionId, ...withoutSession } = conversation;
+      void langflowSessionId;
+      cachedSnapshot = withoutSession;
+      return cachedSnapshot;
+    }
+
+    cachedSnapshot = conversation;
     return cachedSnapshot;
   } catch {
     cachedRaw = null;

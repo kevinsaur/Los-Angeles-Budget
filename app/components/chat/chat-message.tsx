@@ -34,15 +34,25 @@ export function ChatMessage({ message }: ChatMessageProps) {
         {message.status === "thinking" ? (
           <ThinkingIndicator />
         ) : (
-          <p
-            className={`text-base leading-[1.7] font-light ${
-              message.status === "error"
-                ? "text-[#a0497a]"
-                : "text-[rgba(60,30,80,0.75)]"
-            }`}
-          >
-            {message.content}
-          </p>
+          <>
+            {message.ragStatus === "ungrounded" ? (
+              <p className="mb-3 rounded-xl border border-[#e8c4a8]/60 bg-[#fff8f0]/80 px-3 py-2 text-sm leading-[1.5] font-light text-[#8a5a30]">
+                This answer was not grounded in your budget documents. In
+                Langflow, load your corpus via File → Split Text → Astra DB
+                (ingestion) and confirm the retriever path uses collection{" "}
+                <span className="font-normal">la_budget_yearly_docs</span>.
+              </p>
+            ) : null}
+            <p
+              className={`text-base leading-[1.7] font-light ${
+                message.status === "error"
+                  ? "text-[#a0497a]"
+                  : "text-[rgba(60,30,80,0.75)]"
+              }`}
+            >
+              {message.content}
+            </p>
+          </>
         )}
       </div>
     </div>

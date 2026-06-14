@@ -84,18 +84,14 @@ export function useConversation() {
           conversationId: current.id,
           message: trimmed,
           history,
-          langflowSessionId: current.langflowSessionId,
         });
 
         current = updateMessage(current, thinkingMessage.id, {
           content: reply.content,
           citations: reply.citations,
+          ragStatus: reply.ragStatus,
           status: "complete",
         });
-
-        if (reply.langflowSessionId) {
-          current = { ...current, langflowSessionId: reply.langflowSessionId };
-        }
       } catch {
         current = updateMessage(current, thinkingMessage.id, {
           content:
