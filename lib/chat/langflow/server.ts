@@ -1,4 +1,5 @@
 import type { Citation, RagStatus } from "../types";
+import { getLangflowConfigDiagnostics } from "./config";
 
 export type LangflowChatRequest = {
   message: string;
@@ -12,13 +13,17 @@ export type LangflowChatResult = {
 };
 
 function getLangflowConfig() {
-  const apiKey = process.env.LANGFLOW_API_KEY?.trim();
+  const diagnostics = getLangflowConfigDiagnostics();
 
+  if (diagnostics.configurationIssue) {
+    throw new Error(diagnostics.configurationIssue);
+  }
+
+  const apiKey = process.env.LANGFLOW_API_KEY?.trim();
   const baseUrl =
     process.env.LANGFLOW_URL?.trim() ||
     process.env.LANGFLOW_SERVER_URL?.trim();
   const flowId = process.env.LANGFLOW_FLOW_ID?.trim();
-
   let apiUrl = process.env.LANGFLOW_API_URL?.trim();
 
   if (!apiUrl && baseUrl && flowId) {
@@ -326,7 +331,34 @@ function parseLangflowResponse(
 export async function runLangflowChat(
   request: LangflowChatRequest,
 ): Promise<LangflowChatResult> {
+  const diagnostics = getLangflowConfigDiagnostics();
   const { apiUrl, apiKey } = getLangflowConfig();
+
+  // #region agent log
+  fetch("http://127.0.0.1:7634/ingest/fc4d710d-2ecc-4ec8-8613-46b85a71e958", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": "7ca203",
+    },
+    body: JSON.stringify({
+      sessionId: "7ca203",
+      runId: "prod-debug",
+      hypothesisId: "A-B",
+      location: "lib/chat/langflow/server.ts:runLangflowChat:entry",
+      message: "Langflow request starting",
+      data: {
+        resolvedHost: diagnostics.resolvedHost,
+        resolvedFlowId: diagnostics.resolvedFlowId,
+        isProduction: diagnostics.isProduction,
+        usesLocalhost: diagnostics.usesLocalhost,
+        sessionIncluded: false,
+        messageLength: request.message.length,
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
 
   const response = await fetch(apiUrl, {
     method: "POST",
@@ -347,5 +379,31 @@ export async function runLangflowChat(
   }
 
   const data: unknown = await response.json();
-  return parseLangflowResponse(data, "");
+  const parsed = parseLangflowResponse(data, "");
+
+  // #region agent log
+  fetch("http://127.0.0.1:7634/ingest/fc4d710d-2ecc-4ec8-8613-46b85a71e958", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": "7ca203",
+    },
+    body: JSON.stringify({
+      sessionId: "7ca203",
+      runId: "prod-debug",
+      hypothesisId: "C-D",
+      location: "lib/chat/langflow/server.ts:runLangflowChat:response",
+      message: "Langflow response received",
+      data: {
+        ragStatus: parsed.ragStatus,
+        contentPreview: parsed.content.slice(0, 220),
+        hasExpectedFigure: /98,700,000|98700000/i.test(parsed.content),
+        resolvedHost: diagnostics.resolvedHost,
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+
+  return parsed;
 }
