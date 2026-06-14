@@ -11,9 +11,14 @@ const NAV_LINKS = [
 
 export function PageShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const isChat = pathname === "/chat";
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-[linear-gradient(160deg,#c9b8e8_0%,#e8b4d0_28%,#f5c4a8_55%,#f9d8b0_75%,#fce8c8_100%)]">
+    <div
+      className={`relative flex flex-col bg-[linear-gradient(160deg,#c9b8e8_0%,#e8b4d0_28%,#f5c4a8_55%,#f9d8b0_75%,#fce8c8_100%)] ${
+        isChat ? "h-dvh" : "min-h-screen"
+      }`}
+    >
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 opacity-40"
@@ -54,7 +59,7 @@ export function PageShell({ children }: { children: React.ReactNode }) {
 
       {children}
 
-      <footer className="relative z-10 pb-8 text-center text-xs text-[rgba(60,30,80,0.35)]">
+      <footer className="relative z-10 shrink-0 pb-8 text-center text-xs text-[rgba(60,30,80,0.35)]">
         Data sourced from the City of Los Angeles Office of the City
         Administrative Officer
       </footer>

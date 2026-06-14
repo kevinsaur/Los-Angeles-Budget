@@ -7,3 +7,4 @@ export const EXAMPLE_QUESTIONS = [
 ] as const;
 
 export const STORAGE_KEY = "la_budget_conversation";
+export const PENDING_QUERY_KEY = "la_budget_pending_query";
