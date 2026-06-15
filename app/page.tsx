@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { PageShell } from "./components/page-shell";
 import { ChatInput } from "./components/chat/chat-input";
 import { ResumeConversationCta } from "./components/chat/resume-conversation-cta";
-import { EXAMPLE_QUESTIONS } from "@/lib/chat/constants";
+import { EXAMPLE_QUESTIONS, PENDING_QUERY_KEY } from "@/lib/chat/constants";
 
 export default function Home() {
   const router = useRouter();
@@ -26,6 +26,7 @@ export default function Home() {
   const handleSubmit = () => {
     const trimmed = query.trim();
     if (!trimmed) return;
+    sessionStorage.setItem(PENDING_QUERY_KEY, trimmed);
     router.push(`/chat?q=${encodeURIComponent(trimmed)}`);
   };
 

@@ -61,16 +61,18 @@ export function useConversation() {
     const trimmed = content.trim();
     if (!trimmed) return;
 
+    let current = getOrCreateConversation();
+    const userMessage = createUserMessage(trimmed);
+    current = appendMessage(current, userMessage);
+
+    const thinkingMessage = createThinkingMessage();
+    current = appendMessage(current, thinkingMessage);
+    conversationStore.saveConversation(current);
+
     sendQueueRef.current = sendQueueRef.current.then(async () => {
       setIsSending(true);
 
-      let current = getOrCreateConversation();
-      const userMessage = createUserMessage(trimmed);
-      current = appendMessage(current, userMessage);
-
-      const thinkingMessage = createThinkingMessage();
-      current = appendMessage(current, thinkingMessage);
-      conversationStore.saveConversation(current);
+      current = conversationStore.getConversation() ?? current;
 
       try {
         const history = current.messages.filter(
@@ -82,18 +84,14 @@ export function useConversation() {
           conversationId: current.id,
           message: trimmed,
           history,
-          langflowSessionId: current.langflowSessionId,
         });
 
         current = updateMessage(current, thinkingMessage.id, {
           content: reply.content,
           citations: reply.citations,
+          ragStatus: reply.ragStatus,
           status: "complete",
         });
-
-        if (reply.langflowSessionId) {
-          current = { ...current, langflowSessionId: reply.langflowSessionId };
-        }
       } catch {
         current = updateMessage(current, thinkingMessage.id, {
           content:

@@ -8,6 +8,8 @@ export type Citation = {
   url?: string;
 };
 
+export type RagStatus = "grounded" | "ungrounded";
+
 export type Message = {
   id: string;
   role: MessageRole;
@@ -15,6 +17,7 @@ export type Message = {
   citations?: Citation[];
   createdAt: string;
   status: MessageStatus;
+  ragStatus?: RagStatus;
 };
 
 export type Conversation = {
@@ -29,4 +32,5 @@ export type AssistantReply = {
   content: string;
   citations?: Citation[];
   langflowSessionId?: string;
+  ragStatus?: RagStatus;
 };
