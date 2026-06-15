@@ -1,178 +1,56 @@
 import { NextResponse } from "next/server";
+import { getLangflowConfigDiagnostics } from "@/lib/chat/langflow/config";
+import { probeLangflow } from "@/lib/chat/langflow/server";
 
-function getLangflowConfig() {
-  const langflowUrl =
-    process.env.LANGFLOW_URL || process.env.LANGFLOW_SERVER_URL || "";
-
-  const flowId = process.env.LANGFLOW_FLOW_ID || "";
-  const apiKey = process.env.LANGFLOW_API_KEY || "";
-
-  let resolvedHost = "";
-
-  try {
-    if (langflowUrl) {
-      resolvedHost = new URL(langflowUrl).host;
-    }
-  } catch {
-    resolvedHost = "invalid-url";
-  }
-
-  const usesLocalhost =
-    resolvedHost.includes("localhost") ||
-    resolvedHost.includes("127.0.0.1");
-
-  const isProduction =
-    process.env.VERCEL_ENV === "production" ||
-    process.env.NODE_ENV === "production";
-
-  let configurationIssue: string | null = null;
-
-  if (!langflowUrl) {
-    configurationIssue = "Missing LANGFLOW_URL.";
-  } else if (!flowId) {
-    configurationIssue = "Missing LANGFLOW_FLOW_ID.";
-  } else if (!apiKey) {
-    configurationIssue = "Missing LANGFLOW_API_KEY.";
-  } else if (isProduction && usesLocalhost) {
-    configurationIssue =
-      "Production is configured to use localhost. Set LANGFLOW_URL to your Fly.io Langflow URL.";
-  }
-
-  return {
-    langflowUrl,
-    flowId,
-    apiKey,
-    resolvedHost,
-    usesLocalhost,
-    isProduction,
-    configurationIssue,
-  };
-}
-
-function extractText(data: unknown): string {
-  const response = data as any;
-
-  const text =
-    response?.outputs?.[0]?.outputs?.[0]?.results?.message?.text ??
-    response?.outputs?.[0]?.outputs?.[0]?.results?.text?.text ??
-    response?.outputs?.[0]?.outputs?.[0]?.results?.text ??
-    response?.outputs?.[0]?.outputs?.[0]?.outputs?.message?.message ??
-    response?.message ??
-    response?.text;
-
-  return typeof text === "string" ? text : "";
-}
+const PROBE_QUESTION =
+  "What is the exact budget line item for Homelessness Emergency in 2026-27?";
 
 export async function GET(request: Request) {
+  const diagnostics = getLangflowConfigDiagnostics();
   const { searchParams } = new URL(request.url);
-  const shouldProbe = searchParams.get("probe") === "true";
 
-  const {
-    langflowUrl,
-    flowId,
-    apiKey,
-    resolvedHost,
-    usesLocalhost,
-    isProduction,
-    configurationIssue,
-  } = getLangflowConfig();
+  if (searchParams.get("probe") !== "true") {
+    return NextResponse.json(diagnostics);
+  }
 
-  const baseResponse = {
-    apiKeyConfigured: Boolean(apiKey),
-    apiUrlConfigured: Boolean(langflowUrl),
-    resolvedHost,
-    resolvedFlowId: flowId || null,
-    usesLocalhost,
-    isProduction,
-    configurationIssue,
-  };
-
-  if (!shouldProbe || configurationIssue) {
-    return NextResponse.json(baseResponse);
+  if (diagnostics.configurationIssue) {
+    return NextResponse.json(
+      {
+        ...diagnostics,
+        probeError: diagnostics.configurationIssue,
+      },
+      { status: 500 },
+    );
   }
 
   try {
-    const question =
-      "What is the exact budget line item for Homelessness Emergency in 2026-27?";
-
-    const response = await fetch(
-      `${langflowUrl.replace(/\/$/, "")}/api/v1/run/${flowId}?stream=false`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          input_value: question,
-          input_type: "chat",
-          output_type: "chat",
-          session_id: "la-budget-health-check",
-        }),
-      }
+    const probe = await probeLangflow(
+      searchParams.get("q")?.trim() || PROBE_QUESTION,
     );
 
-    const rawText = await response.text();
-    const contentType = response.headers.get("content-type");
-    const rawPreview = rawText.slice(0, 500);
-
-    let data: unknown;
-    let parseError: string | undefined;
-
-    if (rawText) {
-      try {
-        data = JSON.parse(rawText);
-      } catch (error) {
-        parseError =
-          error instanceof Error ? error.message : "JSON parse failed.";
-      }
-    }
-
-    if (parseError) {
-      return NextResponse.json({
-        ...baseResponse,
-        probe: {
-          question,
-          status: response.status,
-          statusText: response.statusText,
-          contentType,
-          ok: response.ok,
-          parseError,
-          rawPreview,
-        },
-      });
-    }
-
-    const content = extractText(data);
-
     return NextResponse.json({
-      ...baseResponse,
+      ...diagnostics,
       probe: {
-        question,
-        status: response.status,
-        statusText: response.statusText,
-        contentType,
-        ok: response.ok,
-        ragStatus: content ? "grounded" : "unknown",
-        contentPreview: content.slice(0, 300),
-        matchesPlaygroundFigure:
-          content.includes("$98,700,000") ||
-          content.includes("98,700,000"),
+        question: searchParams.get("q")?.trim() || PROBE_QUESTION,
+        status: probe.status,
+        statusText: probe.statusText,
+        contentType: probe.contentType,
+        ok: probe.ok,
+        parseError: probe.parseError,
+        rawPreview: probe.rawPreview,
+        ragStatus: probe.ragStatus,
+        contentPreview: probe.content.slice(0, 300),
+        matchesPlaygroundFigure: probe.matchesPlaygroundFigure,
       },
     });
   } catch (error) {
     return NextResponse.json(
       {
-        ...baseResponse,
-        probe: {
-          ok: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Unknown Langflow probe error.",
-        },
+        ...diagnostics,
+        probeError:
+          error instanceof Error ? error.message : "Langflow probe failed",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
