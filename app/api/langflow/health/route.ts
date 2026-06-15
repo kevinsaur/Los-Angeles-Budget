@@ -112,7 +112,37 @@ export async function GET(request: Request) {
       }
     );
 
-    const data = await response.json();
+    const rawText = await response.text();
+    const contentType = response.headers.get("content-type");
+    const rawPreview = rawText.slice(0, 500);
+
+    let data: unknown;
+    let parseError: string | undefined;
+
+    if (rawText) {
+      try {
+        data = JSON.parse(rawText);
+      } catch (error) {
+        parseError =
+          error instanceof Error ? error.message : "JSON parse failed.";
+      }
+    }
+
+    if (parseError) {
+      return NextResponse.json({
+        ...baseResponse,
+        probe: {
+          question,
+          status: response.status,
+          statusText: response.statusText,
+          contentType,
+          ok: response.ok,
+          parseError,
+          rawPreview,
+        },
+      });
+    }
+
     const content = extractText(data);
 
     return NextResponse.json({
@@ -120,6 +150,8 @@ export async function GET(request: Request) {
       probe: {
         question,
         status: response.status,
+        statusText: response.statusText,
+        contentType,
         ok: response.ok,
         ragStatus: content ? "grounded" : "unknown",
         contentPreview: content.slice(0, 300),
